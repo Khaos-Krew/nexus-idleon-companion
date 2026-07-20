@@ -40,17 +40,38 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force build, dist | Out-Null
-          $parts = Get-ChildItem -LiteralPath source-payload -File | Where-Object { $_.Name -like 'part-*' } | Sort-Object Name
-          if ($parts.Count -lt 8) {
-            throw "The retained source payload is incomplete. Found $($parts.Count) parts."
+
+          # Use an explicit allowlist. Early connector uploads left superseded
+          # partial chunks in the repository; wildcard discovery could join
+          # duplicate bytes and corrupt the reconstructed archive.
+          $partNames = @(
+            "part-000a", "part-000b", "part-000c", "part-000d", "part-000e", "part-000f",
+            "part-001a", "part-001b", "part-001ca", "part-001cb", "part-001cc", "part-001cd", "part-001d", "part-001e", "part-001f",
+            "part-002a", "part-002b", "part-002c", "part-002d", "part-002e", "part-002f",
+            "part-003", "part-004", "part-005", "part-006", "part-007"
+          )
+
+          $encodedParts = foreach ($name in $partNames) {
+            $path = Join-Path "source-payload" $name
+            if (-not (Test-Path -LiteralPath $path)) {
+              throw "The retained source payload is incomplete. Missing $path."
+            }
+            (Get-Content -Raw -LiteralPath $path).Trim()
           }
 
-          $encoded = ($parts | ForEach-Object { Get-Content -Raw -LiteralPath $_.FullName }) -join ''
-          $bytes = [Convert]::FromBase64String($encoded)
+          $encoded = $encodedParts -join ''
+          try {
+            $bytes = [Convert]::FromBase64String($encoded)
+          } catch {
+            throw "The retained source payload is not valid base64: $($_.Exception.Message)"
+          }
+
           $sourceZip = Join-Path $env:RUNNER_TEMP $env:SOURCE_NAME
           [IO.File]::WriteAllBytes($sourceZip, $bytes)
 
           $sourceHash = (Get-FileHash -LiteralPath $sourceZip -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host "Reconstructed $($bytes.Length) bytes from $($partNames.Count) verified parts."
+          Write-Host "Source SHA-256: $sourceHash"
           if ($sourceHash -ne $env:SOURCE_SHA256) {
             throw "Retained source hash mismatch. Expected $env:SOURCE_SHA256 but received $sourceHash."
           }
