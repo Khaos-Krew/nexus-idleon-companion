@@ -1,0 +1,6 @@
+*.exe
+*.zip
+*.sha256.txt
+/dist/
+/build/
+/tmp/
