@@ -29,6 +29,8 @@ jobs:
           cache-dependency-path: automation/go.mod
       - run: go test ./...
       - run: go vet ./...
+      - name: Cross-compile Windows x64
+        run: GOOS=windows GOARCH=amd64 go build -trimpath -o IdleOn-Automation-crosscheck.exe .
 
   build-windows:
     runs-on: windows-latest
