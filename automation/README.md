@@ -10,6 +10,7 @@ V1 is built around Bubo green-stack farming:
 - Calibrate named click targets instead of hard-coding screen coordinates.
 - Run reusable travel/navigation routines.
 - Rotate through configured green-stack farming targets for set durations.
+- Mark finished 10M+ green stacks complete so they are skipped permanently.
 - Press `F12` at any time for an emergency stop.
 - No memory editing, save editing, packet manipulation, injection, or anti-cheat evasion.
 
@@ -81,12 +82,27 @@ Test every travel routine manually before running a long cycle.
 
 The runner will:
 
-1. Execute the target's configured travel routine.
-2. Leave Bubo farming for `farmMinutes`.
-3. Move to the next enabled target.
-4. Continue until the requested number of cycles is complete.
+1. Skip disabled or already-completed targets.
+2. Execute the next target's configured travel routine.
+3. Leave Bubo farming for `farmMinutes`.
+4. Move to the next unfinished target.
+5. Continue until the requested number of cycles is complete.
 
 `F12` is checked repeatedly during all waits and stops the loop.
+
+## Mark a green stack complete
+
+Once an item has reached the 10M+ green-stack threshold, mark it finished:
+
+```powershell
+.\IdleOn-Automation.exe done -config automation.json -target "Bubo Green Stack Target 1"
+```
+
+That target will no longer be included in automatic rotations. To reopen it:
+
+```powershell
+.\IdleOn-Automation.exe undo-done -config automation.json -target "Bubo Green Stack Target 1"
+```
 
 ## Configuration format
 
