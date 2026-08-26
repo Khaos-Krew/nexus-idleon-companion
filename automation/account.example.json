@@ -1,0 +1,41 @@
+{
+  "source": "local-companion-snapshot",
+  "accountName": "Example",
+  "world": 6,
+  "characters": [
+    { "name": "Example Bubo", "class": "Bubo", "level": 500, "active": true, "map": "Current map" },
+    { "name": "Example ES", "class": "ES", "level": 480 },
+    { "name": "Example DK", "class": "DK", "level": 475 }
+  ],
+  "systems": {
+    "stamps": { "progress": 0.62, "ready": true },
+    "alchemy": { "progress": 0.35, "ready": true, "routine": "focus-bubo", "preferredClass": "Bubo" },
+    "refinery": { "progress": 0.58, "ready": true },
+    "construction": { "progress": 0.45, "ready": true, "preferredClass": "DK" },
+    "printer": { "progress": 0.50, "ready": true },
+    "worship": { "progress": 0.55, "ready": true, "preferredClass": "ES" },
+    "trapping": { "progress": 0.70, "ready": true },
+    "cooking": { "progress": 0.42, "ready": true },
+    "breeding": { "progress": 0.38, "ready": true },
+    "lab": { "progress": 0.75, "ready": true },
+    "divinity": { "progress": 0.60, "ready": true },
+    "sailing": { "progress": 0.48, "ready": true },
+    "gaming": { "progress": 0.72, "ready": true },
+    "sneaking": { "progress": 0.30, "ready": true },
+    "farming": { "progress": 0.40, "ready": true },
+    "summoning": { "progress": 0.33, "ready": true },
+    "cards": { "progress": 0.68, "ready": true },
+    "obols": { "progress": 0.57, "ready": true },
+    "greenstacks": { "progress": 0.52, "ready": true },
+    "deathnote": { "progress": 0.46, "ready": true },
+    "talents": { "progress": 0.85, "ready": true }
+  },
+  "timers": [
+    { "name": "Worship charge", "ready": true, "priority": 65 },
+    { "name": "Traps", "ready": false }
+  ],
+  "greenStacks": [
+    { "name": "Example drop A", "count": 3200000, "bestClass": "ES", "routine": "travel-greenstack-1" },
+    { "name": "Example drop B", "count": 10000000, "complete": true }
+  ]
+}
