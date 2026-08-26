@@ -29,6 +29,10 @@ func DetectGame(windowTitle string) GameState {
 		valid, _, _ := procIsWindow.Call(hwnd)
 		state.Running = valid != 0
 		state.WindowTitle = windowText(hwnd)
+		var r winRect
+		if ok,_,_:=procGetWindowRect.Call(hwnd, uintptr(unsafe.Pointer(&r))); ok!=0 {
+			state.X=int(r.Left); state.Y=int(r.Top); state.Width=int(r.Right-r.Left); state.Height=int(r.Bottom-r.Top)
+		}
 	}
 	fg, _, _ := procGetForegroundWindow.Call()
 	state.Foreground = state.Running && fg == hwnd
