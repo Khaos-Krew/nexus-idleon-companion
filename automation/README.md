@@ -1,20 +1,98 @@
-# IdleOn Automation V1
+# IdleOn Account Agent
 
-Standalone Windows UI automation for Legends of IdleOn. This project is intentionally separate from the Khaos Nexus application and backend.
+Standalone Windows account-assessment and UI-automation agent for Legends of IdleOn. It is intentionally separate from Khaos Nexus.
 
-## Current focus
+## What it does
 
-V1 is built around Bubo green-stack farming:
+The agent has two layers:
 
-- Focus the IdleOn window.
-- Calibrate named click targets instead of hard-coding screen coordinates.
-- Run reusable travel/navigation routines.
-- Rotate through configured green-stack farming targets for set durations.
-- Mark finished 10M+ green stacks complete so they are skipped permanently.
-- Press `F12` at any time for an emergency stop.
-- No memory editing, save editing, packet manipulation, injection, or anti-cheat evasion.
+1. **Assessment brain** — detects IdleOn, loads account data, scores progression systems, timers, characters and green stacks, and produces a ranked action list.
+2. **Calibrated automation** — executes a routine only when a recommendation explicitly names a routine you configured and calibrated.
 
-The automation only sends normal Windows mouse/keyboard input that you explicitly configure.
+Unknown data and unsupported game states fail closed. The tool does not inject into IdleOn, alter saves, read process memory, manipulate packets, or contain anti-cheat evasion.
+
+## Account coverage
+
+The planner currently understands these major systems:
+
+- Stamps, Forge, Anvil, Alchemy, Post Office and Obols
+- Refinery, Construction, 3D Printer, Worship, Trapping and Shrines
+- Cooking, Breeding, Laboratory and Rift
+- Divinity, Sailing, Gaming and Companions
+- Sneaking, Farming and Summoning
+- Cards, Star Signs, Gear/Tools, Talents and Statues
+- Dungeons, Bosses, Green Stacks, Death Note and Tome
+- Owl and Roo side progression
+
+Each system has world gating, account-wide value, unlock value, expected effort and a preferred class where one is especially useful (for example Bubo for Alchemy, ES for Worship/green-stack farming, DK for Construction/Death Note).
+
+## Toolbox / Efficiency / local data
+
+All sources are normalized into one `AccountSnapshot` model.
+
+### Public IdleOn Toolbox profile
+
+Toolbox exposes public profiles through its profiles service. Use your public main-character/profile name:
+
+```powershell
+.\IdleOn-Automation.exe assess -toolbox "YourMainCharacter"
+```
+
+### IdleOn Efficiency export/JSON
+
+```powershell
+.\IdleOn-Automation.exe assess -efficiency .\idleon-efficiency.json
+```
+
+The adapter is intentionally tolerant: recognizable account/system/character fields are normalized while unknown fields are preserved in raw data rather than guessed.
+
+### Local/companion snapshot
+
+```powershell
+.\IdleOn-Automation.exe assess -snapshot .\account.json
+```
+
+See `account.example.json` for the normalized format. This is the preferred path as the standalone companion's local reader is expanded because it avoids depending on a third-party site being available.
+
+## Detect the active game
+
+```powershell
+.\IdleOn-Automation.exe detect
+```
+
+On Windows this reports whether the configured IdleOn window exists and whether it is the foreground window.
+
+## Run the live assessment agent
+
+Assessment only:
+
+```powershell
+.\IdleOn-Automation.exe agent -config automation.json -snapshot account.json
+```
+
+Use a public Toolbox profile instead:
+
+```powershell
+.\IdleOn-Automation.exe agent -config automation.json -toolbox "YourMainCharacter"
+```
+
+Allow calibrated recommendations to execute:
+
+```powershell
+.\IdleOn-Automation.exe agent -config automation.json -snapshot account.json -execute
+```
+
+Execution defaults to **foreground-only**. A recommendation without an attached routine remains advice only. The same recommendation is also rate-limited so the agent cannot hammer the same action every refresh cycle.
+
+Press `F12` for the global emergency stop.
+
+## Recommendation scoring
+
+The planner ranks work using roughly:
+
+`account-wide value × unlock value × deficiency × ease × urgency × readiness ÷ sqrt(time)`
+
+That keeps cheap, broad upgrades ahead of long grinds with weak immediate returns. Ready/capped timers are added as immediate-loss recommendations, and unfinished green stacks are tracked toward the permanent 10M threshold.
 
 ## Build
 
@@ -23,10 +101,13 @@ Requires Go 1.23+.
 ```powershell
 cd automation
 go test ./...
+go vet ./...
 go build -trimpath -o IdleOn-Automation.exe .
 ```
 
-## First setup
+CI also cross-compiles Windows x64 on Linux and produces a native Windows artifact.
+
+## Automation setup
 
 Copy the example configuration:
 
@@ -34,37 +115,19 @@ Copy the example configuration:
 Copy-Item automation.example.json automation.json
 ```
 
-Edit `automation.json` and set the green-stack target names and farm durations you want.
+The sample uses named click points rather than hard-coded screen coordinates.
 
-The sample travel routines use named points:
+### Calibrate
 
-- `map_button`
-- `greenstack_target_1`
-- `greenstack_target_2`
-- `greenstack_target_3`
-- `travel_confirm`
-
-You can rename them or add as many routines/points as needed.
-
-## Calibrate your screen
-
-Start IdleOn and place it exactly where you normally play. Then run:
+Start IdleOn and place it where you normally play, then run:
 
 ```powershell
 .\IdleOn-Automation.exe calibrate -config automation.json
 ```
 
-For each point:
+For each requested location, move the mouse there and press `F8`. Coordinates are stored locally in `automation.json`. Recalibrate after changing resolution, UI scale, monitor arrangement, or game-window position.
 
-1. Move your mouse to the requested button/location.
-2. Press `F8`.
-3. The coordinate is stored in `automation.json`.
-
-Press `F12` to abort calibration.
-
-If the game window moves, resolution changes, UI scale changes, or you switch monitor layouts, recalibrate.
-
-## Test a routine
+### Test a routine
 
 ```powershell
 .\IdleOn-Automation.exe list -config automation.json
@@ -72,75 +135,63 @@ If the game window moves, resolution changes, UI scale changes, or you switch mo
 .\IdleOn-Automation.exe run -config automation.json -routine travel-greenstack-1
 ```
 
-Test every travel routine manually before running a long cycle.
+Test every navigation routine manually before enabling `agent -execute`.
 
-## Run the Bubo green-stack loop
+## Green-stack rotation
 
 ```powershell
 .\IdleOn-Automation.exe greenstack -config automation.json -cycles 1
 ```
 
-The runner will:
+The loop skips disabled/completed targets, travels to the next target, farms for the configured duration and advances.
 
-1. Skip disabled or already-completed targets.
-2. Execute the next target's configured travel routine.
-3. Leave Bubo farming for `farmMinutes`.
-4. Move to the next unfinished target.
-5. Continue until the requested number of cycles is complete.
-
-`F12` is checked repeatedly during all waits and stops the loop.
-
-## Mark a green stack complete
-
-Once an item has reached the 10M+ green-stack threshold, mark it finished:
+Mark a permanent 10M stack complete:
 
 ```powershell
-.\IdleOn-Automation.exe done -config automation.json -target "Bubo Green Stack Target 1"
+.\IdleOn-Automation.exe done -config automation.json -target "Target Name"
 ```
 
-That target will no longer be included in automatic rotations. To reopen it:
+Reopen it if needed:
 
 ```powershell
-.\IdleOn-Automation.exe undo-done -config automation.json -target "Bubo Green Stack Target 1"
+.\IdleOn-Automation.exe done -config automation.json -target "Target Name" -reopen
 ```
 
-## Configuration format
+## Routine primitives
 
-A routine consists of these step types:
-
-### Focus the game
+Focus:
 
 ```json
 { "type": "focus" }
 ```
 
-### Click a calibrated point
+Click calibrated point:
 
 ```json
 { "type": "click", "point": "map_button", "delayAfterMs": 500 }
 ```
 
-### Double click
+Double-click:
 
 ```json
 { "type": "double-click", "point": "some_point" }
 ```
 
-### Press a key/hotkey
+Key/hotkey:
 
 ```json
 { "type": "key", "key": "F" }
 { "type": "key", "key": "CTRL+1" }
 ```
 
-Supported keys currently include A-Z, 0-9, Ctrl, Shift, Alt, Enter, Space, Tab, Escape, arrows and F1-F12.
-
-### Wait
+Wait:
 
 ```json
 { "type": "wait", "ms": 1000 }
 ```
 
-## Bubo progression direction
+Supported keyboard input currently includes A-Z, 0-9, Ctrl, Shift, Alt, Enter, Space, Tab, Escape, arrows and F1-F12.
 
-The automation layer is deliberately generic. The next progression layer can read the account snapshot and generate the target list automatically, prioritizing missing green stacks and other account-wide progression bottlenecks instead of requiring you to maintain the list by hand.
+## Direction
+
+The next iterations can deepen the local parser so account assessment no longer depends on manual normalized fields, add screen-state verification before clicks, and generate more routine bindings from detected character/class/map context. The architecture already separates data sources, planning and execution so those improvements do not require rewriting the automation engine.
