@@ -2,64 +2,75 @@
   "windowTitle": "Legends of IdleOn",
   "emergencyStopKey": "F12",
   "capturePointKey": "F8",
+  "settings": {
+    "assessIntervalSec": 60,
+    "maxSnapshotAgeSec": 600,
+    "defaultCooldownMinutes": 15,
+    "maxActionsPerHour": 12
+  },
   "calibration": {},
+  "systemRoutines": {
+    "alchemy": "open-alchemy",
+    "construction": "open-construction",
+    "worship": "open-worship",
+    "trapping": "open-trapping",
+    "cooking": "open-cooking",
+    "breeding": "open-breeding",
+    "lab": "open-lab",
+    "divinity": "open-divinity",
+    "sailing": "open-sailing",
+    "gaming": "open-gaming",
+    "sneaking": "open-sneaking",
+    "farming": "open-farming",
+    "summoning": "open-summoning",
+    "research": "open-research",
+    "spelunking": "open-spelunking",
+    "coralreef": "open-coralreef",
+    "sushistation": "open-sushistation"
+  },
+  "classSwitch": {
+    "Bubo": "switch-bubo",
+    "DK": "switch-dk",
+    "ES": "switch-es",
+    "BB": "switch-bb",
+    "BM": "switch-bm",
+    "SB": "switch-sb",
+    "VMan": "switch-vman"
+  },
   "routines": {
-    "focus-bubo": {
-      "description": "Bring IdleOn to the foreground without clicking anything.",
-      "steps": [
-        { "type": "focus" },
-        { "type": "wait", "ms": 500 }
-      ]
+    "focus-game": {
+      "description": "Bring IdleOn to the foreground.",
+      "requiresForeground": false,
+      "cooldownMinutes": 1,
+      "steps": [{ "type": "focus" }, { "type": "wait", "ms": 300 }]
     },
-    "travel-greenstack-1": {
-      "description": "Example travel sequence for the first Bubo green-stack target. Replace the points with your own navigation path.",
-      "steps": [
-        { "type": "focus" },
-        { "type": "click", "point": "map_button", "delayAfterMs": 500 },
-        { "type": "click", "point": "greenstack_target_1", "delayAfterMs": 500 },
-        { "type": "click", "point": "travel_confirm", "delayAfterMs": 1500 }
-      ]
-    },
-    "travel-greenstack-2": {
-      "description": "Example travel sequence for the second Bubo green-stack target.",
-      "steps": [
-        { "type": "focus" },
-        { "type": "click", "point": "map_button", "delayAfterMs": 500 },
-        { "type": "click", "point": "greenstack_target_2", "delayAfterMs": 500 },
-        { "type": "click", "point": "travel_confirm", "delayAfterMs": 1500 }
-      ]
-    },
-    "travel-greenstack-3": {
-      "description": "Example travel sequence for the third Bubo green-stack target.",
-      "steps": [
-        { "type": "focus" },
-        { "type": "click", "point": "map_button", "delayAfterMs": 500 },
-        { "type": "click", "point": "greenstack_target_3", "delayAfterMs": 500 },
-        { "type": "click", "point": "travel_confirm", "delayAfterMs": 1500 }
-      ]
-    }
+    "open-alchemy": { "description": "Calibrated Alchemy entry point.", "requiresForeground": true, "steps": [{ "type": "click", "point": "alchemy_entry", "delayAfterMs": 800 }] },
+    "open-construction": { "description": "Calibrated Construction entry point.", "requiresForeground": true, "steps": [{ "type": "click", "point": "construction_entry", "delayAfterMs": 800 }] },
+    "open-worship": { "description": "Calibrated Worship entry point.", "requiresForeground": true, "steps": [{ "type": "click", "point": "worship_entry", "delayAfterMs": 800 }] },
+    "open-trapping": { "description": "Calibrated Trapping entry point.", "requiresForeground": true, "steps": [{ "type": "click", "point": "trapping_entry", "delayAfterMs": 800 }] },
+    "open-cooking": { "description": "Calibrated Cooking entry point.", "requiresForeground": true, "steps": [{ "type": "click", "point": "cooking_entry", "delayAfterMs": 800 }] },
+    "open-breeding": { "description": "Calibrated Breeding entry point.", "requiresForeground": true, "steps": [{ "type": "click", "point": "breeding_entry", "delayAfterMs": 800 }] },
+    "open-lab": { "description": "Calibrated Laboratory entry point.", "requiresForeground": true, "steps": [{ "type": "click", "point": "lab_entry", "delayAfterMs": 800 }] },
+    "open-divinity": { "description": "Calibrated Divinity entry point.", "requiresForeground": true, "steps": [{ "type": "click", "point": "divinity_entry", "delayAfterMs": 800 }] },
+    "open-sailing": { "description": "Calibrated Sailing entry point.", "requiresForeground": true, "steps": [{ "type": "click", "point": "sailing_entry", "delayAfterMs": 800 }] },
+    "open-gaming": { "description": "Calibrated Gaming entry point.", "requiresForeground": true, "steps": [{ "type": "click", "point": "gaming_entry", "delayAfterMs": 800 }] },
+    "open-sneaking": { "description": "Calibrated Sneaking entry point.", "requiresForeground": true, "steps": [{ "type": "click", "point": "sneaking_entry", "delayAfterMs": 800 }] },
+    "open-farming": { "description": "Calibrated Farming entry point.", "requiresForeground": true, "steps": [{ "type": "click", "point": "farming_entry", "delayAfterMs": 800 }] },
+    "open-summoning": { "description": "Calibrated Summoning entry point.", "requiresForeground": true, "steps": [{ "type": "click", "point": "summoning_entry", "delayAfterMs": 800 }] },
+    "open-research": { "description": "Calibrated World 7 Research entry point.", "requiresForeground": true, "steps": [{ "type": "click", "point": "research_entry", "delayAfterMs": 800 }] },
+    "open-spelunking": { "description": "Calibrated World 7 Spelunking entry point.", "requiresForeground": true, "steps": [{ "type": "click", "point": "spelunking_entry", "delayAfterMs": 800 }] },
+    "open-coralreef": { "description": "Calibrated World 7 Coral Reef entry point.", "requiresForeground": true, "steps": [{ "type": "click", "point": "coralreef_entry", "delayAfterMs": 800 }] },
+    "open-sushistation": { "description": "Calibrated World 7 Sushi Station entry point.", "requiresForeground": true, "steps": [{ "type": "click", "point": "sushistation_entry", "delayAfterMs": 800 }] },
+    "switch-bubo": { "description": "Character-select sequence ending on your Bubo slot.", "requiresForeground": true, "steps": [{ "type": "click", "point": "character_menu", "delayAfterMs": 500 }, { "type": "click", "point": "character_bubo", "delayAfterMs": 1000 }] },
+    "switch-dk": { "description": "Character-select sequence ending on your DK slot.", "requiresForeground": true, "steps": [{ "type": "click", "point": "character_menu", "delayAfterMs": 500 }, { "type": "click", "point": "character_dk", "delayAfterMs": 1000 }] },
+    "switch-es": { "description": "Character-select sequence ending on your ES slot.", "requiresForeground": true, "steps": [{ "type": "click", "point": "character_menu", "delayAfterMs": 500 }, { "type": "click", "point": "character_es", "delayAfterMs": 1000 }] },
+    "switch-bb": { "description": "Character-select sequence ending on your BB slot.", "requiresForeground": true, "steps": [{ "type": "click", "point": "character_menu", "delayAfterMs": 500 }, { "type": "click", "point": "character_bb", "delayAfterMs": 1000 }] },
+    "switch-bm": { "description": "Character-select sequence ending on your BM slot.", "requiresForeground": true, "steps": [{ "type": "click", "point": "character_menu", "delayAfterMs": 500 }, { "type": "click", "point": "character_bm", "delayAfterMs": 1000 }] },
+    "switch-sb": { "description": "Character-select sequence ending on your SB slot.", "requiresForeground": true, "steps": [{ "type": "click", "point": "character_menu", "delayAfterMs": 500 }, { "type": "click", "point": "character_sb", "delayAfterMs": 1000 }] },
+    "switch-vman": { "description": "Character-select sequence ending on your VMan slot.", "requiresForeground": true, "steps": [{ "type": "click", "point": "character_menu", "delayAfterMs": 500 }, { "type": "click", "point": "character_vman", "delayAfterMs": 1000 }] },
+    "travel-greenstack-1": { "description": "Example map travel path for a green-stack target.", "requiresForeground": true, "steps": [{ "type": "click", "point": "map_button", "delayAfterMs": 500 }, { "type": "click", "point": "greenstack_target_1", "delayAfterMs": 500 }, { "type": "click", "point": "travel_confirm", "delayAfterMs": 1500 }] }
   },
   "greenstackTargets": [
-    {
-      "name": "Bubo Green Stack Target 1",
-      "farmMinutes": 30,
-      "travelRoutine": "travel-greenstack-1",
-      "enabled": true,
-      "completed": false
-    },
-    {
-      "name": "Bubo Green Stack Target 2",
-      "farmMinutes": 30,
-      "travelRoutine": "travel-greenstack-2",
-      "enabled": false,
-      "completed": false
-    },
-    {
-      "name": "Bubo Green Stack Target 3",
-      "farmMinutes": 30,
-      "travelRoutine": "travel-greenstack-3",
-      "enabled": false,
-      "completed": false
-    }
+    { "name": "Green Stack Target 1", "farmMinutes": 30, "travelRoutine": "travel-greenstack-1", "enabled": false, "completed": false }
   ]
 }
