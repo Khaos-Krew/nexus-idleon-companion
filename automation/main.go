@@ -15,7 +15,9 @@ func usage() {
     fmt.Println("  list       Show routines, calibration points and green-stack targets")
     fmt.Println("  calibrate  Capture all named click points with F8")
     fmt.Println("  run        Run one named routine")
-    fmt.Println("  greenstack Rotate through enabled Bubo green-stack targets")
+    fmt.Println("  greenstack Rotate through enabled unfinished Bubo green-stack targets")
+    fmt.Println("  done       Mark a 10M+ green stack as permanently completed")
+    fmt.Println("  undo-done  Reopen a completed green-stack target")
     fmt.Println("")
     fmt.Println("Emergency stop: F12 by default")
 }
@@ -73,7 +75,11 @@ func cmdList(args []string) error {
     fmt.Println("Green-stack targets:")
     for _, target := range cfg.GreenstackTargets {
         state := "disabled"
-        if target.Enabled { state = "enabled" }
+        if target.Completed {
+            state = "completed"
+        } else if target.Enabled {
+            state = "enabled"
+        }
         fmt.Printf("  - %s [%s] %dm via %s\n", target.Name, state, target.FarmMinutes, target.TravelRoutine)
     }
     return nil
@@ -127,6 +133,28 @@ func cmdGreenstack(args []string) error {
     return runner.RunGreenstackLoop(*cycles)
 }
 
+func cmdTargetCompletion(args []string, completed bool) error {
+    name := "done"
+    if !completed { name = "undo-done" }
+    fs := flag.NewFlagSet(name, flag.ContinueOnError)
+    path := configFlag(fs)
+    target := fs.String("target", "", "green-stack target name")
+    if err := fs.Parse(args); err != nil { return err }
+    if *target == "" { return fmt.Errorf("-target is required") }
+    cfg, err := loadConfig(*path)
+    if err != nil { return err }
+    if !cfg.markTargetCompleted(*target, completed) {
+        return fmt.Errorf("green-stack target not found: %s", *target)
+    }
+    if err := saveConfig(*path, cfg); err != nil { return err }
+    if completed {
+        fmt.Printf("Marked %s as permanently greenstacked. It will be skipped from now on.\n", *target)
+    } else {
+        fmt.Printf("Reopened %s. It can be farmed again.\n", *target)
+    }
+    return nil
+}
+
 func main() {
     if len(os.Args) < 2 {
         usage()
@@ -138,6 +166,8 @@ func main() {
     case "calibrate": err = cmdCalibrate(os.Args[2:])
     case "run": err = cmdRun(os.Args[2:])
     case "greenstack": err = cmdGreenstack(os.Args[2:])
+    case "done": err = cmdTargetCompletion(os.Args[2:], true)
+    case "undo-done": err = cmdTargetCompletion(os.Args[2:], false)
     case "help", "-h", "--help": usage(); return
     default:
         usage()
