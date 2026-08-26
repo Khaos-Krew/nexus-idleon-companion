@@ -32,44 +32,6 @@ jobs:
       - name: Cross-compile Windows x64
         run: GOOS=windows GOARCH=amd64 go build -trimpath -o IdleOn-Automation-crosscheck.exe .
 
-  inspect-companion-contract:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Reconstruct retained companion source
-        shell: pwsh
-        run: |
-          $partNames = @(
-            'part-000a','part-000b','part-000c','part-000d','part-000e','part-000f',
-            'part-001a','part-001b','part-001ca','part-001cb','part-001cc','part-001cd','part-001d','part-001e','part-001f',
-            'part-002a','part-002b','part-002c','part-002d','part-002e','part-002f',
-            'part-003','part-004','part-005','part-006','part-007'
-          )
-          $encodedParts = foreach ($name in $partNames) {
-            $path = Join-Path 'source-payload' $name
-            if (-not (Test-Path -LiteralPath $path)) { throw "Missing $path" }
-            (Get-Content -Raw -LiteralPath $path).Trim()
-          }
-          $encoded = $encodedParts -join ''
-          $bytes = [Convert]::FromBase64String($encoded)
-          $sourceZip = Join-Path $env:RUNNER_TEMP 'source.zip'
-          [IO.File]::WriteAllBytes($sourceZip, $bytes)
-          $sourceDir = Join-Path $env:RUNNER_TEMP 'retained-source'
-          Expand-Archive -LiteralPath $sourceZip -DestinationPath $sourceDir -Force
-          "SOURCE_ROOT=$((Get-ChildItem -LiteralPath $sourceDir -Directory | Select-Object -First 1).FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          Write-Host "Reconstructed $($bytes.Length) bytes"
-      - name: Report local API and snapshot contract
-        shell: pwsh
-        run: |
-          Write-Host '===== FILES ====='
-          Get-ChildItem -Path $env:SOURCE_ROOT -Filter *.go -Recurse | ForEach-Object { $_.FullName }
-          Write-Host '===== ROUTES PORT HTTP ====='
-          Get-ChildItem -Path $env:SOURCE_ROOT -Filter *.go -Recurse | Select-String -Pattern 'ListenAndServe|HandleFunc|/api/|localhost|127\.0\.0\.1|integration|export|health' | Select-Object -First 400 | ForEach-Object { "$($_.Path):$($_.LineNumber):$($_.Line.Trim())" }
-          Write-Host '===== SNAPSHOT CAPTURE ====='
-          Get-ChildItem -Path $env:SOURCE_ROOT -Filter *.go -Recurse | Select-String -Pattern 'type .*Snapshot|snapshot|Capture|LevelDB|LocalAppData|Idleon Account Monitor|latest' | Select-Object -First 500 | ForEach-Object { "$($_.Path):$($_.LineNumber):$($_.Line.Trim())" }
-          Write-Host '===== REVIEW SYSTEM FIELDS ====='
-          Get-ChildItem -Path $env:SOURCE_ROOT -Filter *.go -Recurse | Select-String -Pattern 'Alchemy|Stamps|Construction|Worship|Trapping|Cooking|Breeding|Laboratory|Sailing|Divinity|Gaming|Sneaking|Farming|Summoning|Green.?Stack|Character' | Select-Object -First 600 | ForEach-Object { "$($_.Path):$($_.LineNumber):$($_.Line.Trim())" }
-
   build-windows:
     runs-on: windows-latest
     defaults:
@@ -82,9 +44,9 @@ jobs:
           go-version: '1.23.x'
           cache-dependency-path: automation/go.mod
       - run: go test ./...
-      - run: go build -trimpath -o IdleOn-Automation.exe .
+      - run: go build -trimpath -o IdleOn-Account-Agent.exe .
       - uses: actions/upload-artifact@v4
         with:
-          name: IdleOn-Automation-Windows-x64
-          path: automation/IdleOn-Automation.exe
+          name: IdleOn-Account-Agent-Windows-x64
+          path: automation/IdleOn-Account-Agent.exe
           if-no-files-found: error
