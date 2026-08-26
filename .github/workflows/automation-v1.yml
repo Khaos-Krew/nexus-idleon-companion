@@ -32,6 +32,34 @@ jobs:
       - name: Cross-compile Windows x64
         run: GOOS=windows GOARCH=amd64 go build -trimpath -o IdleOn-Automation-crosscheck.exe .
 
+  inspect-companion-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct retained companion source
+        shell: bash
+        run: |
+          set -euo pipefail
+          parts=(part-000a part-000b part-000c part-000d part-000e part-000f part-001a part-001b part-001ca part-001cb part-001cc part-001cd part-001d part-001e part-001f part-002a part-002b part-002c part-002d part-002e part-002f part-003 part-004 part-005 part-006 part-007)
+          : > /tmp/source.b64
+          for p in "${parts[@]}"; do tr -d '\r\n' < "source-payload/$p" >> /tmp/source.b64; done
+          base64 -d /tmp/source.b64 > /tmp/source.zip
+          mkdir -p /tmp/source
+          unzip -q /tmp/source.zip -d /tmp/source
+      - name: Report local API and snapshot contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=$(find /tmp/source -mindepth 1 -maxdepth 1 -type d | head -n1)
+          echo '===== FILES ====='
+          find "$root" -maxdepth 2 -type f -name '*.go' | sort
+          echo '===== ROUTES PORT HTTP ====='
+          grep -RniE 'ListenAndServe|HandleFunc|/api/|localhost|127\.0\.0\.1|integration|export|health' "$root" --include='*.go' | head -n 400 || true
+          echo '===== SNAPSHOT CAPTURE ====='
+          grep -RniE 'type .*Snapshot|snapshot|Capture|LevelDB|LocalAppData|Idleon Account Monitor|latest' "$root" --include='*.go' | head -n 500 || true
+          echo '===== REVIEW SYSTEM FIELDS ====='
+          grep -RniE 'Alchemy|Stamps|Construction|Worship|Trapping|Cooking|Breeding|Laboratory|Sailing|Divinity|Gaming|Sneaking|Farming|Summoning|Green.?Stack|Character' "$root" --include='*.go' | head -n 600 || true
+
   build-windows:
     runs-on: windows-latest
     defaults:
