@@ -23,13 +23,11 @@ func usage() {
     fmt.Println("  greenstack  Rotate through enabled green-stack targets")
     fmt.Println("  done        Mark a permanent green-stack target complete")
     fmt.Println("")
-    fmt.Println("Data sources: local/companion JSON, IdleOn Efficiency JSON export, or public IdleOn Toolbox profile")
+    fmt.Println("Data sources: automatic local companion snapshot, IdleOn Efficiency JSON export, or public IdleOn Toolbox profile")
     fmt.Println("Emergency stop: F12 by default")
 }
 
-func configFlag(fs *flag.FlagSet) *string {
-    return fs.String("config", "automation.json", "path to automation configuration")
-}
+func configFlag(fs *flag.FlagSet) *string { return fs.String("config", "automation.json", "path to automation configuration") }
 
 func waitForCapture(input InputDriver, captureKey, stopKey string) (Point, error) {
     fmt.Printf("Move the mouse to the target and press %s. Press %s to abort.\n", captureKey, stopKey)
@@ -49,12 +47,11 @@ func cmdDetect(args []string) error {
     title := fs.String("window", "Legends of IdleOn", "IdleOn window title")
     if err := fs.Parse(args); err != nil { return err }
     raw, _ := json.MarshalIndent(DetectGame(*title), "", "  ")
-    fmt.Println(string(raw))
-    return nil
+    fmt.Println(string(raw)); return nil
 }
 
 func providerFlags(fs *flag.FlagSet) (snapshot, efficiency, toolbox *string) {
-    snapshot = fs.String("snapshot", "", "path to normalized/local companion account JSON")
+    snapshot = fs.String("snapshot", "auto", "path to normalized/local companion account JSON; auto discovers the newest local snapshot")
     efficiency = fs.String("efficiency", "", "path to IdleOn Efficiency JSON/export")
     toolbox = fs.String("toolbox", "", "public IdleOn Toolbox profile/main character")
     return
@@ -63,8 +60,8 @@ func providerFlags(fs *flag.FlagSet) (snapshot, efficiency, toolbox *string) {
 func chooseProvider(snapshot, efficiency, toolbox string) (SnapshotProvider, error) {
     if strings.TrimSpace(toolbox) != "" { return ToolboxProvider{Profile: toolbox}, nil }
     if strings.TrimSpace(efficiency) != "" { return FileSnapshotProvider{Path: efficiency, Source: "idleon-efficiency-import"}, nil }
-    if strings.TrimSpace(snapshot) != "" { return FileSnapshotProvider{Path: snapshot, Source: "local-companion-snapshot"}, nil }
-    return nil, fmt.Errorf("choose one account source: -snapshot, -efficiency, or -toolbox")
+    if strings.EqualFold(strings.TrimSpace(snapshot), "auto") || strings.TrimSpace(snapshot) == "" { return AutoLocalProvider{}, nil }
+    return FileSnapshotProvider{Path: snapshot, Source: "local-companion-snapshot"}, nil
 }
 
 func printAssessment(a Assessment) {
@@ -87,12 +84,8 @@ func cmdAssess(args []string) error {
     if err := fs.Parse(args); err != nil { return err }
     provider, err := chooseProvider(*snapshot, *efficiency, *toolbox); if err != nil { return err }
     snap, err := provider.Load(); if err != nil { return err }
-    assessment := buildAssessment(DetectGame(*title), snap)
-    printAssessment(assessment)
-    if *out != "" {
-        raw, _ := json.MarshalIndent(assessment, "", "  ")
-        if err := os.WriteFile(*out, append(raw, '\n'), 0o644); err != nil { return err }
-    }
+    assessment := buildAssessment(DetectGame(*title), snap); printAssessment(assessment)
+    if *out != "" { raw, _ := json.MarshalIndent(assessment, "", "  "); if err := os.WriteFile(*out, append(raw, '\n'), 0o644); err != nil { return err } }
     return nil
 }
 
@@ -107,20 +100,15 @@ func cmdAgent(args []string) error {
     if err := fs.Parse(args); err != nil { return err }
     cfg, err := loadConfig(*configPath); if err != nil { return err }
     provider, err := chooseProvider(*snapshot, *efficiency, *toolbox); if err != nil { return err }
-    input := NewInputDriver(); runner := NewRunner(cfg, input)
-    if *interval < 5 { *interval = 5 }
+    input := NewInputDriver(); runner := NewRunner(cfg, input); if *interval < 5 { *interval = 5 }
     lastExecuted := ""; lastExecutedAt := time.Time{}
-
     for n := 0; *cycles == 0 || n < *cycles; n++ {
         if input.KeyDown(cfg.EmergencyStopKey) { return fmt.Errorf("emergency stop requested") }
         game := DetectGame(cfg.WindowTitle)
-        if !game.Running {
-            fmt.Println("IdleOn is not running; assessment/execution paused.")
-        } else {
+        if !game.Running { fmt.Println("IdleOn is not running; assessment/execution paused.") } else {
             snap, loadErr := provider.Load()
             if loadErr != nil { fmt.Println("Account source error:", loadErr) } else {
-                assessment := buildAssessment(game, snap)
-                printAssessment(assessment)
+                assessment := buildAssessment(game, snap); printAssessment(assessment)
                 if *execute && (!*foregroundOnly || game.Foreground) {
                     if rec := chooseAutomation(assessment); rec != nil {
                         cooldownMet := time.Since(lastExecutedAt) >= 15*time.Minute
@@ -140,9 +128,7 @@ func cmdAgent(args []string) error {
 }
 
 func cmdList(args []string) error {
-    fs := flag.NewFlagSet("list", flag.ContinueOnError)
-    path := configFlag(fs)
-    if err := fs.Parse(args); err != nil { return err }
+    fs := flag.NewFlagSet("list", flag.ContinueOnError); path := configFlag(fs); if err := fs.Parse(args); err != nil { return err }
     cfg, err := loadConfig(*path); if err != nil { return err }
     routineNames := make([]string, 0, len(cfg.Routines)); for name := range cfg.Routines { routineNames = append(routineNames, name) }; sort.Strings(routineNames)
     fmt.Println("Routines:"); for _, name := range routineNames { fmt.Printf("  - %s: %s\n", name, cfg.Routines[name].Description) }
@@ -161,17 +147,9 @@ func cmdCalibrate(args []string) error {
     fmt.Println("Calibration complete."); return nil
 }
 
-func cmdRun(args []string) error {
-    fs:=flag.NewFlagSet("run",flag.ContinueOnError); path:=configFlag(fs); routine:=fs.String("routine","","routine name"); if err:=fs.Parse(args);err!=nil{return err}; if *routine==""{return fmt.Errorf("-routine is required")}; cfg,err:=loadConfig(*path);if err!=nil{return err}; return NewRunner(cfg,NewInputDriver()).RunRoutine(*routine)
-}
-
-func cmdGreenstack(args []string) error {
-    fs:=flag.NewFlagSet("greenstack",flag.ContinueOnError); path:=configFlag(fs); cycles:=fs.Int("cycles",1,"number of full target cycles");if err:=fs.Parse(args);err!=nil{return err};cfg,err:=loadConfig(*path);if err!=nil{return err};return NewRunner(cfg,NewInputDriver()).RunGreenstackLoop(*cycles)
-}
-
-func cmdDone(args []string) error {
-    fs:=flag.NewFlagSet("done",flag.ContinueOnError); path:=configFlag(fs);target:=fs.String("target","","green-stack target name");reopen:=fs.Bool("reopen",false,"mark target incomplete again");if err:=fs.Parse(args);err!=nil{return err};if strings.TrimSpace(*target)==""{return fmt.Errorf("-target is required")};cfg,err:=loadConfig(*path);if err!=nil{return err};if !cfg.markTargetCompleted(*target,!*reopen){return fmt.Errorf("green-stack target not found: %s",*target)};if err:=saveConfig(*path,cfg);err!=nil{return err};state:="complete";if *reopen{state="open"};fmt.Printf("Marked %s as %s.\n",*target,state);return nil
-}
+func cmdRun(args []string) error { fs:=flag.NewFlagSet("run",flag.ContinueOnError); path:=configFlag(fs); routine:=fs.String("routine","","routine name"); if err:=fs.Parse(args);err!=nil{return err}; if *routine==""{return fmt.Errorf("-routine is required")}; cfg,err:=loadConfig(*path);if err!=nil{return err}; return NewRunner(cfg,NewInputDriver()).RunRoutine(*routine) }
+func cmdGreenstack(args []string) error { fs:=flag.NewFlagSet("greenstack",flag.ContinueOnError); path:=configFlag(fs); cycles:=fs.Int("cycles",1,"number of full target cycles");if err:=fs.Parse(args);err!=nil{return err};cfg,err:=loadConfig(*path);if err!=nil{return err};return NewRunner(cfg,NewInputDriver()).RunGreenstackLoop(*cycles) }
+func cmdDone(args []string) error { fs:=flag.NewFlagSet("done",flag.ContinueOnError); path:=configFlag(fs);target:=fs.String("target","","green-stack target name");reopen:=fs.Bool("reopen",false,"mark target incomplete again");if err:=fs.Parse(args);err!=nil{return err};if strings.TrimSpace(*target)==""{return fmt.Errorf("-target is required")};cfg,err:=loadConfig(*path);if err!=nil{return err};if !cfg.markTargetCompleted(*target,!*reopen){return fmt.Errorf("green-stack target not found: %s",*target)};if err:=saveConfig(*path,cfg);err!=nil{return err};state:="complete";if *reopen{state="open"};fmt.Printf("Marked %s as %s.\n",*target,state);return nil }
 
 func main() {
     if len(os.Args)<2 { usage(); os.Exit(2) }
