@@ -1,0 +1,50 @@
+name: IdleOn Automation V1
+
+on:
+  push:
+    branches:
+      - feature/standalone-idleon-automation-v1
+    paths:
+      - automation/**
+      - .github/workflows/automation-v1.yml
+  pull_request:
+    paths:
+      - automation/**
+      - .github/workflows/automation-v1.yml
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: automation
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+          cache-dependency-path: automation/go.mod
+      - run: go test ./...
+      - run: go vet ./...
+
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: automation
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+          cache-dependency-path: automation/go.mod
+      - run: go test ./...
+      - run: go build -trimpath -o IdleOn-Automation.exe .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: IdleOn-Automation-Windows-x64
+          path: automation/IdleOn-Automation.exe
+          if-no-files-found: error
