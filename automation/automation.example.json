@@ -44,19 +44,22 @@
       "name": "Bubo Green Stack Target 1",
       "farmMinutes": 30,
       "travelRoutine": "travel-greenstack-1",
-      "enabled": true
+      "enabled": true,
+      "completed": false
     },
     {
       "name": "Bubo Green Stack Target 2",
       "farmMinutes": 30,
       "travelRoutine": "travel-greenstack-2",
-      "enabled": false
+      "enabled": false,
+      "completed": false
     },
     {
       "name": "Bubo Green Stack Target 3",
       "farmMinutes": 30,
       "travelRoutine": "travel-greenstack-3",
-      "enabled": false
+      "enabled": false,
+      "completed": false
     }
   ]
 }
