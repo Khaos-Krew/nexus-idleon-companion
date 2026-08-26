@@ -39,6 +39,7 @@ Add-Type -AssemblyName WindowsBase
 $exe = $args[0]
 $config = $args[1]
 $script:agentProcess = $null
+$nl = [Environment]::NewLine
 
 function Quote-Arg([string]$s) {
     if ($null -eq $s) { return '""' }
@@ -110,7 +111,7 @@ $output.Background = '#171B1F'
 $output.Foreground = '#E8ECEF'
 $output.BorderBrush = '#30363D'
 $output.Padding = '12'
-$output.Text = "Ready. Start IdleOn, then click Detect Game or Assess Account.`r`n"
+$output.Text = 'Ready. Start IdleOn, then click Detect Game or Assess Account.' + $nl
 [System.Windows.Controls.Grid]::SetRow($output,2)
 $root.Children.Add($output) | Out-Null
 
@@ -148,7 +149,7 @@ $bar.Children.Add($assess) | Out-Null
 
 $calibrate = New-AgentButton 'Calibrate'
 $calibrate.Add_Click({
-    $output.Text = "Calibration started. Keep IdleOn visible. Move to each requested point and press F8. F12 aborts.`r`n"
+    $output.Text = 'Calibration started. Keep IdleOn visible. Move to each requested point and press F8. F12 aborts.' + $nl
     Run-AgentCommand @('calibrate','-config',$config)
 })
 $bar.Children.Add($calibrate) | Out-Null
@@ -166,7 +167,7 @@ $start.Add_Click({
     $psi.UseShellExecute = $false
     $psi.CreateNoWindow = $true
     $script:agentProcess = [System.Diagnostics.Process]::Start($psi)
-    $output.Text = "Automation running. The agent assesses in the background and may focus IdleOn only when a calibrated action is ready.`r`nPress F12 to emergency-stop an active routine."
+    $output.Text = 'Automation running. The agent assesses in the background and may focus IdleOn only when a calibrated action is ready.' + $nl + 'Press F12 to emergency-stop an active routine.'
 })
 $bar.Children.Add($start) | Out-Null
 
@@ -184,7 +185,7 @@ $bar.Children.Add($stop) | Out-Null
 
 $web = New-AgentButton 'Web Diagnostics'
 $web.Add_Click({
-    $output.Text = "Web diagnostics are optional only. Normal operation stays in this Windows app.`r`nCLI: IdleOn-Account-Agent.exe serve -config automation.json"
+    $output.Text = 'Web diagnostics are optional only. Normal operation stays in this Windows app.' + $nl + 'CLI: IdleOn-Account-Agent.exe serve -config automation.json'
 })
 $bar.Children.Add($web) | Out-Null
 
