@@ -10,42 +10,27 @@ import (
 	"strings"
 )
 
-// init provides the normal Windows double-click experience while preserving
-// the existing CLI when any arguments are supplied.
 func init() {
-	if len(os.Args) > 1 {
-		return
-	}
+	if len(os.Args) > 1 { return }
 
 	exe, err := os.Executable()
-	if err != nil {
-		showStartupError(err)
-		os.Exit(1)
-	}
-	exeDir := filepath.Dir(exe)
-	_ = os.Chdir(exeDir)
+	if err != nil { showStartupError(err); os.Exit(1) }
+	_ = os.Chdir(filepath.Dir(exe))
 
 	const configPath = "automation.json"
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		cfg := defaultConfig()
-		if saveErr := saveConfig(configPath, cfg); saveErr != nil {
-			showStartupError(fmt.Errorf("create starter config: %w", saveErr))
-			os.Exit(1)
+		if saveErr := saveConfig(configPath, defaultConfig()); saveErr != nil {
+			showStartupError(fmt.Errorf("create starter config: %w", saveErr)); os.Exit(1)
 		}
 	}
 
 	if err := launchNativeControlPanel(exe, configPath); err != nil {
-		showStartupError(err)
-		os.Exit(1)
+		showStartupError(err); os.Exit(1)
 	}
 	os.Exit(0)
 }
 
 func launchNativeControlPanel(exePath, configPath string) error {
-	// WPF gives us a normal Windows desktop window without requiring a browser
-	// or an embedded web runtime. All work is still performed by this same EXE
-	// through its CLI subcommands, so the planner/automation code has one source
-	// of truth.
 	const script = `
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
@@ -54,6 +39,15 @@ Add-Type -AssemblyName WindowsBase
 $exe = $args[0]
 $config = $args[1]
 $script:agentProcess = $null
+
+function Quote-Arg([string]$s) {
+    if ($null -eq $s) { return '""' }
+    return '"' + ($s -replace '"','\"') + '"'
+}
+
+function Join-Args([string[]]$items) {
+    return (($items | ForEach-Object { Quote-Arg $_ }) -join ' ')
+}
 
 $window = New-Object System.Windows.Window
 $window.Title = 'IdleOn Account Agent'
@@ -72,7 +66,6 @@ $root.RowDefinitions.Add((New-Object System.Windows.Controls.RowDefinition -Prop
 $window.Content = $root
 
 $header = New-Object System.Windows.Controls.StackPanel
-$header.Orientation = 'Vertical'
 [System.Windows.Controls.Grid]::SetRow($header,0)
 $root.Children.Add($header) | Out-Null
 
@@ -109,10 +102,8 @@ function New-AgentButton([string]$text) {
 $output = New-Object System.Windows.Controls.TextBox
 $output.IsReadOnly = $true
 $output.AcceptsReturn = $true
-$output.AcceptsTab = $true
 $output.TextWrapping = 'Wrap'
 $output.VerticalScrollBarVisibility = 'Auto'
-$output.HorizontalScrollBarVisibility = 'Disabled'
 $output.FontFamily = 'Consolas'
 $output.FontSize = 13
 $output.Background = '#171B1F'
@@ -126,11 +117,11 @@ $root.Children.Add($output) | Out-Null
 function Run-AgentCommand([string[]]$commandArgs) {
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $exe
+    $psi.Arguments = Join-Args $commandArgs
     $psi.UseShellExecute = $false
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true
     $psi.CreateNoWindow = $true
-    foreach ($a in $commandArgs) { $psi.ArgumentList.Add($a) }
     $p = New-Object System.Diagnostics.Process
     $p.StartInfo = $psi
     [void]$p.Start()
@@ -157,7 +148,7 @@ $bar.Children.Add($assess) | Out-Null
 
 $calibrate = New-AgentButton 'Calibrate'
 $calibrate.Add_Click({
-    $output.Text = "Calibration started. Keep IdleOn visible. Move the mouse to each requested point and press F8. F12 aborts.`r`n"
+    $output.Text = "Calibration started. Keep IdleOn visible. Move to each requested point and press F8. F12 aborts.`r`n"
     Run-AgentCommand @('calibrate','-config',$config)
 })
 $bar.Children.Add($calibrate) | Out-Null
@@ -171,15 +162,11 @@ $start.Add_Click({
     }
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $exe
+    $psi.Arguments = Join-Args @('agent','-config',$config,'-snapshot','auto','-execute','-foreground-only=false')
     $psi.UseShellExecute = $false
     $psi.CreateNoWindow = $true
-    $psi.ArgumentList.Add('agent')
-    $psi.ArgumentList.Add('-config'); $psi.ArgumentList.Add($config)
-    $psi.ArgumentList.Add('-snapshot'); $psi.ArgumentList.Add('auto')
-    $psi.ArgumentList.Add('-execute')
-    $psi.ArgumentList.Add('-foreground-only=false')
     $script:agentProcess = [System.Diagnostics.Process]::Start($psi)
-    $output.Text = "Automation running. The agent will assess in the background and focus IdleOn only when a calibrated action is ready.`r`nPress F12 at any time to emergency-stop an active routine."
+    $output.Text = "Automation running. The agent assesses in the background and may focus IdleOn only when a calibrated action is ready.`r`nPress F12 to emergency-stop an active routine."
 })
 $bar.Children.Add($start) | Out-Null
 
@@ -187,7 +174,7 @@ $stop = New-AgentButton 'Stop Agent'
 $stop.Background = '#53282B'
 $stop.Add_Click({
     if ($script:agentProcess -and -not $script:agentProcess.HasExited) {
-        try { $script:agentProcess.Kill($true) } catch {}
+        try { $script:agentProcess.Kill() } catch {}
         $output.Text = 'Agent process stopped.'
     } else {
         $output.Text = 'No automation process is currently running.'
@@ -197,13 +184,13 @@ $bar.Children.Add($stop) | Out-Null
 
 $web = New-AgentButton 'Web Diagnostics'
 $web.Add_Click({
-    $output.Text = "Web diagnostics are optional and are not used by the normal app window.`r`nRun from Command Prompt if needed:`r`nIdleOn-Account-Agent.exe serve -config automation.json"
+    $output.Text = "Web diagnostics are optional only. Normal operation stays in this Windows app.`r`nCLI: IdleOn-Account-Agent.exe serve -config automation.json"
 })
 $bar.Children.Add($web) | Out-Null
 
 $window.Add_Closing({
     if ($script:agentProcess -and -not $script:agentProcess.HasExited) {
-        try { $script:agentProcess.Kill($true) } catch {}
+        try { $script:agentProcess.Kill() } catch {}
     }
 })
 
