@@ -1,0 +1,62 @@
+{
+  "windowTitle": "Legends of IdleOn",
+  "emergencyStopKey": "F12",
+  "capturePointKey": "F8",
+  "calibration": {},
+  "routines": {
+    "focus-bubo": {
+      "description": "Bring IdleOn to the foreground without clicking anything.",
+      "steps": [
+        { "type": "focus" },
+        { "type": "wait", "ms": 500 }
+      ]
+    },
+    "travel-greenstack-1": {
+      "description": "Example travel sequence for the first Bubo green-stack target. Replace the points with your own navigation path.",
+      "steps": [
+        { "type": "focus" },
+        { "type": "click", "point": "map_button", "delayAfterMs": 500 },
+        { "type": "click", "point": "greenstack_target_1", "delayAfterMs": 500 },
+        { "type": "click", "point": "travel_confirm", "delayAfterMs": 1500 }
+      ]
+    },
+    "travel-greenstack-2": {
+      "description": "Example travel sequence for the second Bubo green-stack target.",
+      "steps": [
+        { "type": "focus" },
+        { "type": "click", "point": "map_button", "delayAfterMs": 500 },
+        { "type": "click", "point": "greenstack_target_2", "delayAfterMs": 500 },
+        { "type": "click", "point": "travel_confirm", "delayAfterMs": 1500 }
+      ]
+    },
+    "travel-greenstack-3": {
+      "description": "Example travel sequence for the third Bubo green-stack target.",
+      "steps": [
+        { "type": "focus" },
+        { "type": "click", "point": "map_button", "delayAfterMs": 500 },
+        { "type": "click", "point": "greenstack_target_3", "delayAfterMs": 500 },
+        { "type": "click", "point": "travel_confirm", "delayAfterMs": 1500 }
+      ]
+    }
+  },
+  "greenstackTargets": [
+    {
+      "name": "Bubo Green Stack Target 1",
+      "farmMinutes": 30,
+      "travelRoutine": "travel-greenstack-1",
+      "enabled": true
+    },
+    {
+      "name": "Bubo Green Stack Target 2",
+      "farmMinutes": 30,
+      "travelRoutine": "travel-greenstack-2",
+      "enabled": false
+    },
+    {
+      "name": "Bubo Green Stack Target 3",
+      "farmMinutes": 30,
+      "travelRoutine": "travel-greenstack-3",
+      "enabled": false
+    }
+  ]
+}
