@@ -40,12 +40,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          parts=(part-000a part-000b part-000c part-000d part-000e part-000f part-001a part-001b part-001ca part-001cb part-001cc part-001cd part-001d part-001e part-001f part-002a part-002b part-002c part-002d part-002e part-002f part-003 part-004 part-005 part-006 part-007)
-          : > /tmp/source.b64
-          for p in "${parts[@]}"; do tr -d '\r\n' < "source-payload/$p" >> /tmp/source.b64; done
-          base64 -d /tmp/source.b64 > /tmp/source.zip
-          mkdir -p /tmp/source
-          unzip -q /tmp/source.zip -d /tmp/source
+          python3 - <<'PY'
+          import base64, pathlib, re, zipfile
+          parts = ['part-000a','part-000b','part-000c','part-000d','part-000e','part-000f','part-001a','part-001b','part-001ca','part-001cb','part-001cc','part-001cd','part-001d','part-001e','part-001f','part-002a','part-002b','part-002c','part-002d','part-002e','part-002f','part-003','part-004','part-005','part-006','part-007']
+          encoded = ''.join(pathlib.Path('source-payload', p).read_text(encoding='utf-8-sig').strip() for p in parts)
+          encoded = ''.join(re.findall(r'[A-Za-z0-9+/=]', encoded))
+          data = base64.b64decode(encoded)
+          pathlib.Path('/tmp/source.zip').write_bytes(data)
+          pathlib.Path('/tmp/source').mkdir(exist_ok=True)
+          with zipfile.ZipFile('/tmp/source.zip') as z: z.extractall('/tmp/source')
+          print('reconstructed', len(data), 'bytes')
+          PY
       - name: Report local API and snapshot contract
         shell: bash
         run: |
