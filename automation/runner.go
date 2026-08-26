@@ -8,9 +8,9 @@ import (
 )
 
 type Runner struct {
-    cfg      Config
-    input    InputDriver
-    stopKey  string
+    cfg     Config
+    input   InputDriver
+    stopKey string
 }
 
 func NewRunner(cfg Config, input InputDriver) *Runner {
@@ -93,12 +93,12 @@ func (r *Runner) RunRoutine(name string) error {
 func (r *Runner) RunGreenstackLoop(cycles int) error {
     targets := make([]GreenstackTarget, 0, len(r.cfg.GreenstackTargets))
     for _, target := range r.cfg.GreenstackTargets {
-        if target.Enabled {
+        if target.Enabled && !target.Completed {
             targets = append(targets, target)
         }
     }
     if len(targets) == 0 {
-        return errors.New("no enabled greenstackTargets in config")
+        return errors.New("no enabled, unfinished greenstackTargets in config")
     }
     if cycles < 1 {
         cycles = 1
