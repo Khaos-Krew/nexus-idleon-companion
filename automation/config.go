@@ -33,6 +33,7 @@ type GreenstackTarget struct {
     FarmMinutes   int    `json:"farmMinutes"`
     TravelRoutine string `json:"travelRoutine"`
     Enabled       bool   `json:"enabled"`
+    Completed     bool   `json:"completed"`
 }
 
 type Config struct {
@@ -116,4 +117,15 @@ func (c Config) requiredCalibrationPoints() []string {
         }
     }
     return out
+}
+
+func (c *Config) markTargetCompleted(name string, completed bool) bool {
+    wanted := strings.TrimSpace(name)
+    for i := range c.GreenstackTargets {
+        if strings.EqualFold(strings.TrimSpace(c.GreenstackTargets[i].Name), wanted) {
+            c.GreenstackTargets[i].Completed = completed
+            return true
+        }
+    }
+    return false
 }
