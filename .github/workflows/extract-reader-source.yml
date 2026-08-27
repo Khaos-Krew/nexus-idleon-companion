@@ -1,0 +1,50 @@
+name: Extract verified reader source
+
+on:
+  push:
+    branches:
+      - feature/standalone-idleon-automation-v1
+    paths:
+      - ".github/workflows/extract-reader-source.yml"
+      - "source-payload/**"
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reconstruct verified companion source
+        shell: pwsh
+        run: |
+          $partNames = @(
+            "part-000a", "part-000b", "part-000c", "part-000d", "part-000e", "part-000f",
+            "part-001a", "part-001b", "part-001ca", "part-001cb", "part-001cc", "part-001cd", "part-001d", "part-001e", "part-001f",
+            "part-002a", "part-002b", "part-002c", "part-002d", "part-002e", "part-002f",
+            "part-003", "part-004", "part-005", "part-006", "part-007"
+          )
+          $encoded = foreach ($name in $partNames) { (Get-Content -Raw -LiteralPath (Join-Path 'source-payload' $name)).Trim() }
+          $bytes = [Convert]::FromBase64String(($encoded -join ''))
+          $zip = Join-Path $env:RUNNER_TEMP 'reader-source.zip'
+          [IO.File]::WriteAllBytes($zip, $bytes)
+          $actual = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne 'b8c596e86b7a0c3be757d98dea8b99a729488a10c9ad6cef219e437629220d34') { throw "Source verification failed: $actual" }
+          Remove-Item -Recurse -Force reader-source -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force reader-source | Out-Null
+          Expand-Archive -LiteralPath $zip -DestinationPath $env:RUNNER_TEMP/reader-expanded -Force
+          $root = Get-ChildItem -LiteralPath $env:RUNNER_TEMP/reader-expanded -Directory | Select-Object -First 1
+          if (-not $root) { throw 'No source root found' }
+          Copy-Item -Path (Join-Path $root.FullName '*') -Destination reader-source -Recurse -Force
+      - name: Commit extracted source to feature branch
+        shell: pwsh
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add reader-source
+          if (git diff --cached --quiet) { exit 0 }
+          git commit -m 'build(agent): expose verified local reader source for integration'
+          git push origin HEAD:feature/standalone-idleon-automation-v1
