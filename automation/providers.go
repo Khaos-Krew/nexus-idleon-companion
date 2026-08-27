@@ -44,13 +44,31 @@ func (p ToolboxProvider) Load()(AccountSnapshot,error){
 }
 
 func decodeFlexibleSnapshot(raw []byte,source string)(AccountSnapshot,error){
-	var direct AccountSnapshot
-	if err:=json.Unmarshal(raw,&direct);err==nil&&(len(direct.Systems)>0||len(direct.Characters)>0||direct.World>0){
-		direct.Source=source
-		if direct.Schema==""{direct.Schema="normalized-agent-snapshot"}
-		if direct.CapturedAt.IsZero(){direct.CapturedAt=time.Now()}
-		if direct.Systems==nil{direct.Systems=map[string]SystemState{}}
-		return direct,nil
+	// Only short-circuit for our explicit normalized format. A community/raw
+	// document may happen to contain a `characters` array and must still go
+	// through schema detection and raw-key parsing.
+	var probe map[string]any
+	if err:=json.Unmarshal(raw,&probe);err==nil{
+		if schema,ok:=probe["schema"].(string);ok&&schema=="normalized-agent-snapshot"{
+			var direct AccountSnapshot
+			if err:=json.Unmarshal(raw,&direct);err!=nil{return AccountSnapshot{},err}
+			direct.Source=source
+			if direct.CapturedAt.IsZero(){direct.CapturedAt=time.Now()}
+			if direct.Systems==nil{direct.Systems=map[string]SystemState{}}
+			return direct,nil
+		}
+		if _,hasSystems:=probe["systems"];hasSystems{
+			if _,hasSource:=probe["source"];hasSource{
+				var direct AccountSnapshot
+				if err:=json.Unmarshal(raw,&direct);err==nil{
+					direct.Source=source
+					if direct.Schema==""{direct.Schema="normalized-agent-snapshot"}
+					if direct.CapturedAt.IsZero(){direct.CapturedAt=time.Now()}
+					if direct.Systems==nil{direct.Systems=map[string]SystemState{}}
+					return direct,nil
+				}
+			}
+		}
 	}
 
 	var generic map[string]any
@@ -79,8 +97,6 @@ func decodeFlexibleSnapshot(raw []byte,source string)(AccountSnapshot,error){
 	snap.DetectedKeys=detected
 	if snap.World<=0 { snap.World=inferWorldFromSystems(snap.Systems) }
 
-	// Toolbox exposes lastUpdated at the profile envelope; Efficiency raw data
-	// normally has no timestamp, in which case file mtime/provider time is used.
 	if v,ok:=firstNumber(generic,"lastUpdated","capturedAt","updatedAt");ok{
 		seconds:=v;if seconds>1e12{seconds/=1000}
 		if seconds>946684800 { snap.CapturedAt=time.Unix(int64(seconds),0) }
