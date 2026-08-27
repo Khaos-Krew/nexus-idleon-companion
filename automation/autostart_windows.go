@@ -48,6 +48,7 @@ $exe = $env:IDLEON_AGENT_EXE
 $config = $env:IDLEON_AGENT_CONFIG
 $script:agentProcess = $null
 $nl = [Environment]::NewLine
+$sourceConfig = Join-Path (Split-Path -Parent $exe) 'agent-source.json'
 
 if ([string]::IsNullOrWhiteSpace($exe) -or -not (Test-Path -LiteralPath $exe)) {
     [System.Windows.MessageBox]::Show('Backend executable path is missing or invalid: ' + $exe, 'IdleOn Account Agent') | Out-Null
@@ -65,10 +66,10 @@ function Join-Args([string[]]$items) {
 
 $window = New-Object System.Windows.Window
 $window.Title = 'IdleOn Account Agent'
-$window.Width = 980
-$window.Height = 720
-$window.MinWidth = 760
-$window.MinHeight = 560
+$window.Width = 1020
+$window.Height = 780
+$window.MinWidth = 820
+$window.MinHeight = 620
 $window.WindowStartupLocation = 'CenterScreen'
 $window.Background = '#101214'
 
@@ -92,9 +93,108 @@ $header.Children.Add($title) | Out-Null
 
 $subtitle = New-Object System.Windows.Controls.TextBlock
 $subtitle.Text = 'Whole-account assessment and calibrated automation. F12 is the emergency stop.'
-$subtitle.Margin = '0,4,0,12'
+$subtitle.Margin = '0,4,0,10'
 $subtitle.Foreground = '#AAB4BE'
 $header.Children.Add($subtitle) | Out-Null
+
+$sourceBox = New-Object System.Windows.Controls.Border
+$sourceBox.BorderBrush = '#30363D'
+$sourceBox.BorderThickness = '1'
+$sourceBox.Padding = '10'
+$sourceBox.Margin = '0,0,0,10'
+$sourceBox.Background = '#171B1F'
+$header.Children.Add($sourceBox) | Out-Null
+
+$sourceStack = New-Object System.Windows.Controls.StackPanel
+$sourceBox.Child = $sourceStack
+
+$sourceTitle = New-Object System.Windows.Controls.TextBlock
+$sourceTitle.Text = 'Account Data Source'
+$sourceTitle.FontWeight = 'Bold'
+$sourceTitle.Foreground = '#F2F2F2'
+$sourceTitle.Margin = '0,0,0,6'
+$sourceStack.Children.Add($sourceTitle) | Out-Null
+
+$toolRow = New-Object System.Windows.Controls.DockPanel
+$toolRow.Margin = '0,0,0,6'
+$sourceStack.Children.Add($toolRow) | Out-Null
+$toolLabel = New-Object System.Windows.Controls.TextBlock
+$toolLabel.Text = 'Toolbox profile / main character:'
+$toolLabel.Width = 210
+$toolLabel.VerticalAlignment = 'Center'
+$toolLabel.Foreground = '#AAB4BE'
+[System.Windows.Controls.DockPanel]::SetDock($toolLabel,'Left')
+$toolRow.Children.Add($toolLabel) | Out-Null
+$toolboxInput = New-Object System.Windows.Controls.TextBox
+$toolboxInput.MinWidth = 360
+$toolboxInput.Background = '#22272D'
+$toolboxInput.Foreground = '#F2F2F2'
+$toolboxInput.BorderBrush = '#3A424A'
+$toolboxInput.Padding = '6,4'
+$toolRow.Children.Add($toolboxInput) | Out-Null
+
+$effRow = New-Object System.Windows.Controls.DockPanel
+$sourceStack.Children.Add($effRow) | Out-Null
+$effLabel = New-Object System.Windows.Controls.TextBlock
+$effLabel.Text = 'IdleOn Efficiency JSON:'
+$effLabel.Width = 210
+$effLabel.VerticalAlignment = 'Center'
+$effLabel.Foreground = '#AAB4BE'
+[System.Windows.Controls.DockPanel]::SetDock($effLabel,'Left')
+$effRow.Children.Add($effLabel) | Out-Null
+$browse = New-Object System.Windows.Controls.Button
+$browse.Content = 'Browse...'
+$browse.Width = 90
+$browse.Margin = '8,0,0,0'
+$browse.Background = '#252B31'
+$browse.Foreground = '#F2F2F2'
+[System.Windows.Controls.DockPanel]::SetDock($browse,'Right')
+$effRow.Children.Add($browse) | Out-Null
+$efficiencyInput = New-Object System.Windows.Controls.TextBox
+$efficiencyInput.MinWidth = 360
+$efficiencyInput.Background = '#22272D'
+$efficiencyInput.Foreground = '#F2F2F2'
+$efficiencyInput.BorderBrush = '#3A424A'
+$efficiencyInput.Padding = '6,4'
+$effRow.Children.Add($efficiencyInput) | Out-Null
+
+try {
+    if (Test-Path -LiteralPath $sourceConfig) {
+        $saved = Get-Content -LiteralPath $sourceConfig -Raw | ConvertFrom-Json
+        if ($saved.toolbox) { $toolboxInput.Text = [string]$saved.toolbox }
+        if ($saved.efficiency) { $efficiencyInput.Text = [string]$saved.efficiency }
+    }
+} catch {}
+
+function Save-SourceConfig {
+    try {
+        @{ toolbox = $toolboxInput.Text.Trim(); efficiency = $efficiencyInput.Text.Trim() } | ConvertTo-Json | Set-Content -LiteralPath $sourceConfig -Encoding UTF8
+    } catch {}
+}
+
+function Get-SourceArgs {
+    Save-SourceConfig
+    $eff = $efficiencyInput.Text.Trim()
+    $tool = $toolboxInput.Text.Trim()
+    if (-not [string]::IsNullOrWhiteSpace($eff)) {
+        return @('-snapshot','none','-efficiency',$eff)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($tool)) {
+        return @('-snapshot','none','-toolbox',$tool)
+    }
+    return @('-snapshot','auto')
+}
+
+$browse.Add_Click({
+    Add-Type -AssemblyName System.Windows.Forms
+    $dlg = New-Object System.Windows.Forms.OpenFileDialog
+    $dlg.Filter = 'JSON files (*.json)|*.json|All files (*.*)|*.*'
+    $dlg.Title = 'Select IdleOn Efficiency export JSON'
+    if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        $efficiencyInput.Text = $dlg.FileName
+        Save-SourceConfig
+    }
+})
 
 $bar = New-Object System.Windows.Controls.WrapPanel
 $bar.Margin = '0,0,0,12'
@@ -124,7 +224,7 @@ $output.Background = '#171B1F'
 $output.Foreground = '#E8ECEF'
 $output.BorderBrush = '#30363D'
 $output.Padding = '12'
-$output.Text = 'Ready. Start IdleOn, then click Detect Game.' + $nl + 'Backend: ' + $exe
+$output.Text = 'Ready. Detect Game first. For account assessment, enter your Toolbox public profile/main character above, choose an Efficiency JSON, or use an existing local companion capture.'
 [System.Windows.Controls.Grid]::SetRow($output,2)
 $root.Children.Add($output) | Out-Null
 
@@ -166,11 +266,17 @@ $detect.Add_Click({ Run-AgentCommand @('detect') })
 $bar.Children.Add($detect) | Out-Null
 
 $doctor = New-AgentButton 'Doctor'
-$doctor.Add_Click({ Run-AgentCommand @('doctor','-config',$config,'-snapshot','auto') })
+$doctor.Add_Click({
+    $sourceArgs = Get-SourceArgs
+    Run-AgentCommand (@('doctor','-config',$config) + $sourceArgs)
+})
 $bar.Children.Add($doctor) | Out-Null
 
 $assess = New-AgentButton 'Assess Account'
-$assess.Add_Click({ Run-AgentCommand @('assess','-config',$config,'-snapshot','auto') })
+$assess.Add_Click({
+    $sourceArgs = Get-SourceArgs
+    Run-AgentCommand (@('assess','-config',$config) + $sourceArgs)
+})
 $bar.Children.Add($assess) | Out-Null
 
 $calibrate = New-AgentButton 'Calibrate'
@@ -188,15 +294,17 @@ $start.Add_Click({
             $output.Text = 'Automation is already running. F12 is the emergency stop.'
             return
         }
+        $sourceArgs = Get-SourceArgs
+        $agentArgs = @('agent','-config',$config) + $sourceArgs + @('-execute','-foreground-only=false')
         $psi = New-Object System.Diagnostics.ProcessStartInfo
         $psi.FileName = $exe
-        $psi.Arguments = Join-Args @('agent','-config',$config,'-snapshot','auto','-execute','-foreground-only=false')
+        $psi.Arguments = Join-Args $agentArgs
         $psi.WorkingDirectory = Split-Path -Parent $exe
         $psi.UseShellExecute = $false
         $psi.CreateNoWindow = $true
         $script:agentProcess = [System.Diagnostics.Process]::Start($psi)
         if ($null -eq $script:agentProcess) { throw 'Agent process failed to start.' }
-        $output.Text = 'Automation process started (PID ' + $script:agentProcess.Id + ').' + $nl + 'The agent will assess in the background. Press F12 to emergency-stop an active routine.'
+        $output.Text = 'Automation process started (PID ' + $script:agentProcess.Id + ').' + $nl + 'The agent will assess in the background using the selected account source. Press F12 to emergency-stop an active routine.'
     } catch {
         $output.Text = 'START ERROR:' + $nl + $_.Exception.Message
     }
@@ -227,6 +335,7 @@ $web.Add_Click({
 $bar.Children.Add($web) | Out-Null
 
 $window.Add_Closing({
+    Save-SourceConfig
     if ($script:agentProcess -and -not $script:agentProcess.HasExited) {
         try { $script:agentProcess.Kill() } catch {}
     }
