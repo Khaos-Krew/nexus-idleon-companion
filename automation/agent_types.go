@@ -13,8 +13,30 @@ type GameState struct {
 	CheckedAt   time.Time `json:"checkedAt"`
 }
 
+type SourceDiagnostic struct {
+	Source       string   `json:"source"`
+	Schema       string   `json:"schema"`
+	Loaded       bool     `json:"loaded"`
+	Fresh        bool     `json:"fresh,omitempty"`
+	CapturedAt   time.Time `json:"capturedAt,omitempty"`
+	Characters   int      `json:"characters,omitempty"`
+	Systems      int      `json:"systems,omitempty"`
+	RawKeys      int      `json:"rawKeys,omitempty"`
+	Warnings     []string `json:"warnings,omitempty"`
+}
+
+type SystemCoverage struct {
+	ID         string `json:"id"`
+	Label      string `json:"label"`
+	World      int    `json:"world"`
+	Status     string `json:"status"` // parsed, detected, missing, not-unlocked
+	Confidence int    `json:"confidence"`
+	Evidence   string `json:"evidence,omitempty"`
+}
+
 type AccountSnapshot struct {
 	Source       string                 `json:"source"`
+	Schema       string                 `json:"schema,omitempty"`
 	AccountName  string                 `json:"accountName,omitempty"`
 	World        int                    `json:"world,omitempty"`
 	Characters   []CharacterSnapshot    `json:"characters,omitempty"`
@@ -23,14 +45,18 @@ type AccountSnapshot struct {
 	GreenStacks  []GreenStackState      `json:"greenStacks,omitempty"`
 	Raw          map[string]any         `json:"raw,omitempty"`
 	CapturedAt   time.Time              `json:"capturedAt"`
+	Warnings     []string               `json:"warnings,omitempty"`
+	DetectedKeys []string               `json:"detectedKeys,omitempty"`
 }
 
 type CharacterSnapshot struct {
 	Name        string             `json:"name"`
 	Class       string             `json:"class,omitempty"`
+	ClassIndex  int                `json:"classIndex,omitempty"`
 	Level       int                `json:"level,omitempty"`
 	Active      bool               `json:"active,omitempty"`
 	Map         string             `json:"map,omitempty"`
+	MapIndex    int                `json:"mapIndex,omitempty"`
 	AFKTarget   string             `json:"afkTarget,omitempty"`
 	Skills      map[string]float64 `json:"skills,omitempty"`
 	DamageScore float64            `json:"damageScore,omitempty"`
@@ -51,6 +77,8 @@ type SystemState struct {
 	Target         float64 `json:"target,omitempty"`
 	Note           string  `json:"note,omitempty"`
 	Evidence       string  `json:"evidence,omitempty"`
+	Confidence     float64 `json:"confidence,omitempty"`
+	DetectedOnly   bool    `json:"detectedOnly,omitempty"`
 }
 
 type TimerState struct {
@@ -97,20 +125,23 @@ type CharacterPlan struct {
 }
 
 type Assessment struct {
-	GeneratedAt      time.Time        `json:"generatedAt"`
-	Game             GameState        `json:"game"`
-	Source           string           `json:"source"`
-	AccountName      string           `json:"accountName,omitempty"`
-	World            int              `json:"world,omitempty"`
-	Stage            string           `json:"stage,omitempty"`
-	HealthScore      int              `json:"healthScore"`
-	CoveragePercent  int              `json:"coveragePercent"`
-	SnapshotAgeSec   int64            `json:"snapshotAgeSeconds,omitempty"`
-	ActiveCharacter  *CharacterSnapshot `json:"activeCharacter,omitempty"`
-	Top              []Recommendation `json:"top"`
-	QuickWins        []Recommendation `json:"quickWins"`
-	TimersReady      []Recommendation `json:"timersReady"`
-	GreenStacks      []Recommendation `json:"greenStacks"`
-	CharacterPlan    []CharacterPlan  `json:"characterPlan,omitempty"`
-	Warnings         []string         `json:"warnings,omitempty"`
+	GeneratedAt       time.Time           `json:"generatedAt"`
+	Game              GameState           `json:"game"`
+	Source            string              `json:"source"`
+	Schema            string              `json:"schema,omitempty"`
+	AccountName       string              `json:"accountName,omitempty"`
+	World             int                 `json:"world,omitempty"`
+	Stage             string              `json:"stage,omitempty"`
+	HealthScore       int                 `json:"healthScore"`
+	CoveragePercent   int                 `json:"coveragePercent"`
+	SnapshotAgeSec    int64               `json:"snapshotAgeSeconds,omitempty"`
+	ActiveCharacter   *CharacterSnapshot  `json:"activeCharacter,omitempty"`
+	Top               []Recommendation    `json:"top"`
+	QuickWins         []Recommendation    `json:"quickWins"`
+	TimersReady       []Recommendation    `json:"timersReady"`
+	GreenStacks       []Recommendation    `json:"greenStacks"`
+	CharacterPlan     []CharacterPlan     `json:"characterPlan,omitempty"`
+	SystemCoverage    []SystemCoverage    `json:"systemCoverage,omitempty"`
+	SourceDiagnostics []SourceDiagnostic  `json:"sourceDiagnostics,omitempty"`
+	Warnings          []string            `json:"warnings,omitempty"`
 }
