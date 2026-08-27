@@ -11,21 +11,29 @@ import (
 )
 
 func init() {
-	if len(os.Args) > 1 { return }
+	if len(os.Args) > 1 {
+		return
+	}
 
 	exe, err := os.Executable()
-	if err != nil { showStartupError(err); os.Exit(1) }
-	_ = os.Chdir(filepath.Dir(exe))
+	if err != nil {
+		showStartupError(err)
+		os.Exit(1)
+	}
+	exeDir := filepath.Dir(exe)
+	_ = os.Chdir(exeDir)
 
 	const configPath = "automation.json"
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		if saveErr := saveConfig(configPath, defaultConfig()); saveErr != nil {
-			showStartupError(fmt.Errorf("create starter config: %w", saveErr)); os.Exit(1)
+			showStartupError(fmt.Errorf("create starter config: %w", saveErr))
+			os.Exit(1)
 		}
 	}
 
-	if err := launchNativeControlPanel(exe, configPath); err != nil {
-		showStartupError(err); os.Exit(1)
+	if err := launchNativeControlPanel(exe, filepath.Join(exeDir, configPath)); err != nil {
+		showStartupError(err)
+		os.Exit(1)
 	}
 	os.Exit(0)
 }
@@ -36,10 +44,15 @@ Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
 
-$exe = $args[0]
-$config = $args[1]
+$exe = $env:IDLEON_AGENT_EXE
+$config = $env:IDLEON_AGENT_CONFIG
 $script:agentProcess = $null
 $nl = [Environment]::NewLine
+
+if ([string]::IsNullOrWhiteSpace($exe) -or -not (Test-Path -LiteralPath $exe)) {
+    [System.Windows.MessageBox]::Show('Backend executable path is missing or invalid: ' + $exe, 'IdleOn Account Agent') | Out-Null
+    exit 2
+}
 
 function Quote-Arg([string]$s) {
     if ($null -eq $s) { return '""' }
@@ -111,28 +124,41 @@ $output.Background = '#171B1F'
 $output.Foreground = '#E8ECEF'
 $output.BorderBrush = '#30363D'
 $output.Padding = '12'
-$output.Text = 'Ready. Start IdleOn, then click Detect Game or Assess Account.' + $nl
+$output.Text = 'Ready. Start IdleOn, then click Detect Game.' + $nl + 'Backend: ' + $exe
 [System.Windows.Controls.Grid]::SetRow($output,2)
 $root.Children.Add($output) | Out-Null
 
 function Run-AgentCommand([string[]]$commandArgs) {
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $exe
-    $psi.Arguments = Join-Args $commandArgs
-    $psi.UseShellExecute = $false
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
-    $psi.CreateNoWindow = $true
-    $p = New-Object System.Diagnostics.Process
-    $p.StartInfo = $psi
-    [void]$p.Start()
-    $stdout = $p.StandardOutput.ReadToEnd()
-    $stderr = $p.StandardError.ReadToEnd()
-    $p.WaitForExit()
-    $text = ($stdout + $stderr).Trim()
-    if ([string]::IsNullOrWhiteSpace($text)) { $text = "Command completed with exit code $($p.ExitCode)." }
-    $output.Text = $text
-    $output.ScrollToEnd()
+    try {
+        $output.Text = 'Running: ' + $exe + ' ' + (Join-Args $commandArgs)
+        $window.Dispatcher.Invoke([action]{}, 'Background')
+
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = $exe
+        $psi.Arguments = Join-Args $commandArgs
+        $psi.WorkingDirectory = Split-Path -Parent $exe
+        $psi.UseShellExecute = $false
+        $psi.RedirectStandardOutput = $true
+        $psi.RedirectStandardError = $true
+        $psi.CreateNoWindow = $true
+
+        $p = New-Object System.Diagnostics.Process
+        $p.StartInfo = $psi
+        if (-not $p.Start()) { throw 'Process failed to start.' }
+        $stdout = $p.StandardOutput.ReadToEnd()
+        $stderr = $p.StandardError.ReadToEnd()
+        $p.WaitForExit()
+        $code = $p.ExitCode
+        $text = ($stdout + $stderr).Trim()
+        if ([string]::IsNullOrWhiteSpace($text)) {
+            $text = 'Command completed with exit code ' + $code + '.'
+        }
+        $output.Text = $text
+        $output.ScrollToEnd()
+    } catch {
+        $output.Text = 'COMMAND ERROR:' + $nl + $_.Exception.Message + $nl + $nl + $_.ScriptStackTrace
+        $output.ScrollToEnd()
+    }
 }
 
 $detect = New-AgentButton 'Detect Game'
@@ -149,7 +175,7 @@ $bar.Children.Add($assess) | Out-Null
 
 $calibrate = New-AgentButton 'Calibrate'
 $calibrate.Add_Click({
-    $output.Text = 'Calibration started. Keep IdleOn visible. Move to each requested point and press F8. F12 aborts.' + $nl
+    $output.Text = 'Calibration started. Keep IdleOn visible. Move to each requested point and press F8. F12 aborts.'
     Run-AgentCommand @('calibrate','-config',$config)
 })
 $bar.Children.Add($calibrate) | Out-Null
@@ -157,17 +183,23 @@ $bar.Children.Add($calibrate) | Out-Null
 $start = New-AgentButton 'Start Automation'
 $start.Background = '#21472E'
 $start.Add_Click({
-    if ($script:agentProcess -and -not $script:agentProcess.HasExited) {
-        $output.Text = 'Automation is already running. F12 is the emergency stop.'
-        return
+    try {
+        if ($script:agentProcess -and -not $script:agentProcess.HasExited) {
+            $output.Text = 'Automation is already running. F12 is the emergency stop.'
+            return
+        }
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = $exe
+        $psi.Arguments = Join-Args @('agent','-config',$config,'-snapshot','auto','-execute','-foreground-only=false')
+        $psi.WorkingDirectory = Split-Path -Parent $exe
+        $psi.UseShellExecute = $false
+        $psi.CreateNoWindow = $true
+        $script:agentProcess = [System.Diagnostics.Process]::Start($psi)
+        if ($null -eq $script:agentProcess) { throw 'Agent process failed to start.' }
+        $output.Text = 'Automation process started (PID ' + $script:agentProcess.Id + ').' + $nl + 'The agent will assess in the background. Press F12 to emergency-stop an active routine.'
+    } catch {
+        $output.Text = 'START ERROR:' + $nl + $_.Exception.Message
     }
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $exe
-    $psi.Arguments = Join-Args @('agent','-config',$config,'-snapshot','auto','-execute','-foreground-only=false')
-    $psi.UseShellExecute = $false
-    $psi.CreateNoWindow = $true
-    $script:agentProcess = [System.Diagnostics.Process]::Start($psi)
-    $output.Text = 'Automation running. The agent assesses in the background and may focus IdleOn only when a calibrated action is ready.' + $nl + 'Press F12 to emergency-stop an active routine.'
 })
 $bar.Children.Add($start) | Out-Null
 
@@ -175,8 +207,13 @@ $stop = New-AgentButton 'Stop Agent'
 $stop.Background = '#53282B'
 $stop.Add_Click({
     if ($script:agentProcess -and -not $script:agentProcess.HasExited) {
-        try { $script:agentProcess.Kill() } catch {}
-        $output.Text = 'Agent process stopped.'
+        try {
+            $script:agentProcess.Kill()
+            $script:agentProcess.WaitForExit(3000) | Out-Null
+            $output.Text = 'Agent process stopped.'
+        } catch {
+            $output.Text = 'STOP ERROR: ' + $_.Exception.Message
+        }
     } else {
         $output.Text = 'No automation process is currently running.'
     }
@@ -198,11 +235,17 @@ $window.Add_Closing({
 [void]$window.ShowDialog()
 `
 
-	cmd := exec.Command("powershell.exe", "-NoProfile", "-STA", "-WindowStyle", "Hidden", "-Command", script, exePath, configPath)
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-STA", "-WindowStyle", "Hidden", "-Command", script)
 	cmd.Dir = filepath.Dir(exePath)
+	cmd.Env = append(os.Environ(),
+		"IDLEON_AGENT_EXE="+exePath,
+		"IDLEON_AGENT_CONFIG="+configPath,
+	)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		msg := strings.TrimSpace(string(output))
-		if msg != "" { return fmt.Errorf("native control panel: %w: %s", err, msg) }
+		if msg != "" {
+			return fmt.Errorf("native control panel: %w: %s", err, msg)
+		}
 		return fmt.Errorf("native control panel: %w", err)
 	}
 	return nil
